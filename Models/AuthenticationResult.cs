@@ -7,5 +7,7 @@
         public bool IsAdministrative { get; init; }
 
         public ApplicationUserInfo? UserInfo { get; init; }
+
+        public IReadOnlyList<string> GroupNames { get; init; } = [];
     }
 }
