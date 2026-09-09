@@ -3,6 +3,7 @@ namespace Common.Security.Integration;
 using Common.Diagnostics;
 using Common.Security.Abstractions;
 using Common.Security.Authenticators;
+using Common.Security.Authorization;
 using Common.Security.Options;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -23,6 +24,16 @@ public static class SecurityServiceCollectionExtensions
             provider.GetRequiredService<ActiveDirectory>(),
             provider.GetRequiredService<ISecurityEventSink>()));
         services.AddScoped<IDiagnosticCheck, CommonSecurityDiagnosticCheck>();
+        return services;
+    }
+
+    public static IServiceCollection AddCommonAuthorization<TAuthorizationStore>(this IServiceCollection services)
+        where TAuthorizationStore : class, IAuthorizationStore
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        services.AddScoped<IAuthorizationStore, TAuthorizationStore>();
+        services.AddScoped<IPermissionAuthorizer, PermissionAuthorizer>();
         return services;
     }
 
