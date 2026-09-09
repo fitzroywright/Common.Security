@@ -13,6 +13,12 @@ public sealed class PermissionAuthorizer : IPermissionAuthorizer
         this.authorizationStore = authorizationStore ?? throw new ArgumentNullException(nameof(authorizationStore));
     }
 
+    public async Task<bool> CanAsync(
+        AuthorizationSubject subject,
+        string permission,
+        CancellationToken cancellationToken = default)
+        => (await AuthorizeAsync(subject, permission, cancellationToken).ConfigureAwait(false)).Allowed;
+
     public async Task<AuthorizationDecision> AuthorizeAsync(
         AuthorizationSubject subject,
         string permission,
