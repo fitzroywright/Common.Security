@@ -7,7 +7,7 @@
     <Version>1.0.0</Version>
     <Authors>Fitzroy Wright</Authors>
     <Company>Thinking Machines</Company>
-    <Description>Shared authentication and directory security components for Aegis applications.</Description>
+    <Description>Shared authentication and directory security components for Common applications.</Description>
     <RepositoryUrl>https://github.com/fitzroywright/Common.Security</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
@@ -19,6 +19,13 @@
     <None Remove="Common.Security.UnitTests/**" />
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.0" />
     <PackageReference Include="System.DirectoryServices.Protocols" Version="10.0.11" />
+  </ItemGroup>
+  <ItemGroup Condition="Exists('Common.Diagnostics/Common.Diagnostics.csproj')">
+    <ProjectReference Include="Common.Diagnostics/Common.Diagnostics.csproj" />
+  </ItemGroup>
+  <ItemGroup Condition="!Exists('Common.Diagnostics/Common.Diagnostics.csproj') And Exists('../Common.Diagnostics/Common.Diagnostics.csproj')">
+    <ProjectReference Include="../Common.Diagnostics/Common.Diagnostics.csproj" />
   </ItemGroup>
 </Project>
