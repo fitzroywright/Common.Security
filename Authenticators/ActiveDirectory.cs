@@ -43,7 +43,14 @@
             var userInfo = new ApplicationUserInfo();
             PopulateUserInfo(userEntry, userInfo);
             bool isAdministrative = IsAdministrative(userEntry);
-            return new AuthenticationResult { IsAuthenticated = true, IsAdministrative = isAdministrative, UserInfo = userInfo };
+            IReadOnlyList<string> groupNames = GetGroupNames(userEntry);
+            return new AuthenticationResult
+            {
+                IsAuthenticated = true,
+                IsAdministrative = isAdministrative,
+                UserInfo = userInfo,
+                GroupNames = groupNames
+            };
         }
 
         private LdapConnection? GetLdapConnection(string loginName, string password)
@@ -125,6 +132,33 @@
             return memberOf.Any(groupDn => administrativeGroupPatterns.Any(pattern => groupDn.StartsWith(pattern, StringComparison.OrdinalIgnoreCase)));
         }
 
+        private static IReadOnlyList<string> GetGroupNames(SearchResultEntry userEntry)
+        {
+            if (!userEntry.Attributes.Contains("memberOf")) return [];
+
+            return userEntry.Attributes["memberOf"]
+                .GetValues(typeof(string))
+                .Cast<string>()
+                .Select(GetGroupCn)
+                .Where(group => !string.IsNullOrWhiteSpace(group))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(group => group, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+        }
+
+        private static string GetGroupCn(string distinguishedName)
+        {
+            if (string.IsNullOrWhiteSpace(distinguishedName)) return string.Empty;
+            try
+            {
+                return Rfc4514Parser.Parse(distinguishedName).GetValues("CN").FirstOrDefault()?.Trim() ?? string.Empty;
+            }
+            catch (FormatException)
+            {
+                return string.Empty;
+            }
+        }
+
         private static void PopulateUserInfo(SearchResultEntry userEntry, ApplicationUserInfo user)
         {
             foreach (string attributeName in userEntry.Attributes.AttributeNames)
@@ -158,7 +192,7 @@
 
         private static string CreateGroupDnPattern(string groupName) => $"CN={groupName.Trim()},";
         private static bool IsInvalidCredentials(LdapException exception) => exception.ErrorCode == 49;
-        private static AuthenticationResult AuthenticationFailed() => new() { IsAuthenticated = false, IsAdministrative = false, UserInfo = null };
+        private static AuthenticationResult AuthenticationFailed() => new() { IsAuthenticated = false, IsAdministrative = false, UserInfo = null, GroupNames = [] };
 
         private static void ValidateOptions(ActiveDirectoryAuthenticationOptions options)
         {
