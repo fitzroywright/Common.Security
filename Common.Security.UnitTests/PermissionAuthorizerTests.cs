@@ -26,7 +26,7 @@ public sealed class PermissionAuthorizerTests
             "orders.approve");
 
         Assert.True(decision.Allowed);
-        Assert.Contains("manager", decision.EffectiveRoles, StringComparer.OrdinalIgnoreCase);
+        Assert.Contains(decision.EffectiveRoles, role => string.Equals(role, "manager", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
