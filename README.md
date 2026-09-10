@@ -8,7 +8,27 @@ Package ID: `Common.Security`
 
 Current version: `1.0.0`
 
-The library owns authentication and directory concerns such as Active Directory/LDAPS credential validation, directory user lookup, username normalization and authentication result models. Consuming applications remain responsible for application-specific sessions, roles and authorization.
+## Responsibilities
+
+`Common.Security` provides the reusable authentication and authorization engine used across applications.
+
+The library owns shared security capabilities including:
+
+- Active Directory/LDAPS credential validation.
+- Directory user lookup and username normalization.
+- Authentication result models and authentication abstractions.
+- Application-role and permission authorization through `IPermissionAuthorizer` / `PermissionAuthorizer`.
+- Direct user-to-role assignments.
+- Directory-group-to-application-role mappings.
+- Time-bound role assignments.
+- Authorization decision auditing.
+- Authorization administration services and abstractions.
+- Dependency-injection registration for authentication and authorization services.
+- Integration with `Common.Diagnostics` for security health checks and security-event reporting.
+
+Consuming applications remain responsible for application-specific security policy and persistence. Each application defines the roles and permissions that make sense for its own domain and provides the storage implementation for role assignments, group mappings, time-bound assignments, audit records and related authorization data.
+
+In short: `Common.Security` provides the reusable security mechanism; consuming applications provide their domain-specific policy and data.
 
 ## Build
 
