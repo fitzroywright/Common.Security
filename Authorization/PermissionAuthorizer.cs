@@ -7,10 +7,17 @@ public sealed class PermissionAuthorizer : IPermissionAuthorizer
     public const string AllPermissions = "*";
 
     private readonly IAuthorizationStore authorizationStore;
+    private readonly ITimeBoundAuthorizationStore? timeBoundStore;
+    private readonly IAuthorizationAuditStore? auditStore;
 
-    public PermissionAuthorizer(IAuthorizationStore authorizationStore)
+    public PermissionAuthorizer(
+        IAuthorizationStore authorizationStore,
+        ITimeBoundAuthorizationStore? timeBoundStore = null,
+        IAuthorizationAuditStore? auditStore = null)
     {
         this.authorizationStore = authorizationStore ?? throw new ArgumentNullException(nameof(authorizationStore));
+        this.timeBoundStore = timeBoundStore;
+        this.auditStore = auditStore;
     }
 
     public async Task<bool> CanAsync(
@@ -27,6 +34,7 @@ public sealed class PermissionAuthorizer : IPermissionAuthorizer
         ArgumentNullException.ThrowIfNull(subject);
         ArgumentException.ThrowIfNullOrWhiteSpace(permission);
 
+        string normalizedPermission = permission.Trim();
         IReadOnlyCollection<string> directRoles = await authorizationStore
             .GetDirectRoleKeysAsync(subject.SubjectId, cancellationToken)
             .ConfigureAwait(false);
@@ -37,36 +45,78 @@ public sealed class PermissionAuthorizer : IPermissionAuthorizer
                 .GetRoleKeysForGroupsAsync(subject.GroupNames, cancellationToken)
                 .ConfigureAwait(false);
 
+        IReadOnlyCollection<string> timeBoundRoles = Array.Empty<string>();
+        if (timeBoundStore is not null)
+        {
+            IReadOnlyCollection<TimeBoundRoleAssignment> assignments = await timeBoundStore
+                .GetActiveRoleAssignmentsAsync(subject.SubjectId, DateTimeOffset.UtcNow, cancellationToken)
+                .ConfigureAwait(false);
+            timeBoundRoles = assignments
+                .Where(assignment => assignment.IsActive(DateTimeOffset.UtcNow))
+                .Select(assignment => assignment.RoleKey)
+                .ToArray();
+        }
+
         string[] effectiveRoleKeys = directRoles
             .Concat(groupRoles)
+            .Concat(timeBoundRoles)
             .Where(role => !string.IsNullOrWhiteSpace(role))
             .Select(role => role.Trim())
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
+        AuthorizationDecision decision;
         if (effectiveRoleKeys.Length == 0)
         {
-            return new AuthorizationDecision(
+            decision = new AuthorizationDecision(
                 false,
-                permission.Trim(),
+                normalizedPermission,
                 effectiveRoleKeys,
                 "No application role is assigned to the subject or any of its mapped directory groups.");
         }
+        else
+        {
+            IReadOnlyCollection<RoleDefinition> roles = await authorizationStore
+                .GetRolesAsync(effectiveRoleKeys, cancellationToken)
+                .ConfigureAwait(false);
 
-        IReadOnlyCollection<RoleDefinition> roles = await authorizationStore
-            .GetRolesAsync(effectiveRoleKeys, cancellationToken)
-            .ConfigureAwait(false);
+            bool allowed = roles.Any(role => role.Permissions.Any(granted =>
+                string.Equals(granted, normalizedPermission, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(granted, AllPermissions, StringComparison.OrdinalIgnoreCase)));
 
-        bool allowed = roles.Any(role => role.Permissions.Any(granted =>
-            string.Equals(granted, permission, StringComparison.OrdinalIgnoreCase)
-            || string.Equals(granted, AllPermissions, StringComparison.OrdinalIgnoreCase)));
+            decision = new AuthorizationDecision(
+                allowed,
+                normalizedPermission,
+                effectiveRoleKeys,
+                allowed
+                    ? "Permission granted by an application role."
+                    : "None of the effective application roles grants the requested permission.");
+        }
 
-        return new AuthorizationDecision(
-            allowed,
-            permission.Trim(),
-            effectiveRoleKeys,
-            allowed
-                ? "Permission granted by an application role."
-                : "None of the effective application roles grants the requested permission.");
+        await AuditDecisionAsync(subject, decision, cancellationToken).ConfigureAwait(false);
+        return decision;
+    }
+
+    private async Task AuditDecisionAsync(
+        AuthorizationSubject subject,
+        AuthorizationDecision decision,
+        CancellationToken cancellationToken)
+    {
+        if (auditStore is null)
+        {
+            return;
+        }
+
+        await auditStore.AppendAsync(
+            new AuthorizationAuditEvent(
+                Guid.NewGuid(),
+                DateTimeOffset.UtcNow,
+                subject.SubjectId,
+                "Authorize",
+                decision.Allowed ? "Allowed" : "Denied",
+                SubjectId: subject.SubjectId,
+                Permission: decision.Permission,
+                Reason: decision.Reason),
+            cancellationToken).ConfigureAwait(false);
     }
 }
