@@ -37,6 +37,21 @@ public static class SecurityServiceCollectionExtensions
         return services;
     }
 
+    public static IServiceCollection AddCommonAuthorizationAdministration<TAuthorizationStore>(this IServiceCollection services)
+        where TAuthorizationStore : class, IAuthorizationStore, IAuthorizationAdministrationStore, ITimeBoundAuthorizationStore, IAuthorizationAuditStore
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        services.AddScoped<TAuthorizationStore>();
+        services.AddScoped<IAuthorizationStore>(provider => provider.GetRequiredService<TAuthorizationStore>());
+        services.AddScoped<IAuthorizationAdministrationStore>(provider => provider.GetRequiredService<TAuthorizationStore>());
+        services.AddScoped<ITimeBoundAuthorizationStore>(provider => provider.GetRequiredService<TAuthorizationStore>());
+        services.AddScoped<IAuthorizationAuditStore>(provider => provider.GetRequiredService<TAuthorizationStore>());
+        services.AddScoped<IPermissionAuthorizer, PermissionAuthorizer>();
+        services.AddScoped<AuthorizationAdministrationService>();
+        return services;
+    }
+
     public static IServiceCollection AddCommonSecurityDiagnostics(this IServiceCollection services)
     {
         ArgumentNullException.ThrowIfNull(services);
