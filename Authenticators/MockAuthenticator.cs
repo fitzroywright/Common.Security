@@ -1,4 +1,4 @@
-﻿namespace Common.Security.Authenticators
+namespace Common.Security.Authenticators
 {
     using Common.Security.Abstractions;
     using Common.Security.Constants;
@@ -25,12 +25,15 @@
 
         public AuthenticationResult Authenticate(string loginName, string password)
         {
-            if (string.IsNullOrWhiteSpace(loginName) || string.IsNullOrWhiteSpace(password)) return AuthenticationFailed();
+            if (string.IsNullOrWhiteSpace(loginName)) return AuthenticationFailed();
+
             string userName = UserNameNormalizer.GetUserNameWithoutDomain(loginName);
-            if (string.IsNullOrWhiteSpace(userName) || string.IsNullOrWhiteSpace(configuredPassword)) return AuthenticationFailed();
+            if (string.IsNullOrWhiteSpace(userName)) return AuthenticationFailed();
+
             bool isAdministrative = adminUsers.Contains(userName);
             bool isAllowed = allowAnyUser || allowedUsers.Contains(userName) || isAdministrative;
-            if (!isAllowed || !string.Equals(password, configuredPassword, StringComparison.Ordinal)) return AuthenticationFailed();
+            if (!isAllowed || !string.Equals(password ?? string.Empty, configuredPassword, StringComparison.Ordinal)) return AuthenticationFailed();
+
             ApplicationUserInfo userInfo = CreateUserInfo(userName);
             Trace.WriteLine($"Mock authentication succeeded. UserName={userName}, IsAdministrative={isAdministrative}");
             return new AuthenticationResult { IsAuthenticated = true, IsAdministrative = isAdministrative, UserInfo = userInfo };
