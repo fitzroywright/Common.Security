@@ -24,7 +24,9 @@ jobs:
           dotnet-version: '10.0.x'
       - name: Restore
         run: dotnet restore Common.Security.slnx
-      - name: Build
+      - name: Build Debug
+        run: dotnet build Common.Security.slnx -c Debug --no-restore
+      - name: Build Release
         shell: bash
         run: |
           set -o pipefail
