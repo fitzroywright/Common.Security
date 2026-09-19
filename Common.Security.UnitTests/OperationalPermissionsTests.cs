@@ -1,3 +1,4 @@
+using Xunit;
 using Common.Security.Authorization;
 using Common.Security.Constants;
 
