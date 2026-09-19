@@ -38,7 +38,7 @@ public sealed class OperationalPermissionsTests
             directRoles: ["operator"]);
 
         var authorizer = new PermissionAuthorizer(store);
-        var subject = new AuthorizationSubject("user-1", "user-1", []);
+        var subject = new AuthorizationSubject("user-1", []);
 
         AuthorizationDecision decision =
             await authorizer.AuthorizeAsync(subject, OperationalPermissions.AlertsResolve);
