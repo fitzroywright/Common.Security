@@ -6,7 +6,7 @@ using Common.Security.Options;
 using System.Net.Sockets;
 using System.Text.RegularExpressions;
 
-public sealed class SecurityDirectoryConfigurationLevelXTest(ActiveDirectoryAuthenticationOptions options) : ILevelXLocalTest
+public sealed class SecurityDirectoryConfigurationDiagnosticLevelTest(ActiveDirectoryAuthenticationOptions options) : IDiagnosticLevelLocalTest
 {
     private readonly ActiveDirectoryAuthenticationOptions options = options ?? throw new ArgumentNullException(nameof(options));
     public string TestId => "COMMON.SECURITY.L5.DIRECTORY.CONFIG";
@@ -30,7 +30,7 @@ public sealed class SecurityDirectoryConfigurationLevelXTest(ActiveDirectoryAuth
     }
 }
 
-public sealed class SecurityOperationalPermissionsLevelXTest : ILevelXLocalTest
+public sealed class SecurityOperationalPermissionsDiagnosticLevelTest : IDiagnosticLevelLocalTest
 {
     public string TestId => "COMMON.SECURITY.L5.PERMISSIONS.CATALOG";
     public string Name => "Operational permission catalog valid";
@@ -58,14 +58,14 @@ public sealed class SecurityOperationalPermissionsLevelXTest : ILevelXLocalTest
     }
 }
 
-public sealed class SecurityDirectoryServerReachabilityLevelXTest : ILevelXLocalTest
+public sealed class SecurityDirectoryServerReachabilityDiagnosticLevelTest : IDiagnosticLevelLocalTest
 {
     private readonly string server;
     private readonly int port;
     private readonly int timeoutSeconds;
     private readonly string idSuffix;
 
-    public SecurityDirectoryServerReachabilityLevelXTest(string server, int port, int timeoutSeconds)
+    public SecurityDirectoryServerReachabilityDiagnosticLevelTest(string server, int port, int timeoutSeconds)
     {
         this.server = string.IsNullOrWhiteSpace(server) ? throw new ArgumentException("Server is required.", nameof(server)) : server.Trim();
         this.port = port;
