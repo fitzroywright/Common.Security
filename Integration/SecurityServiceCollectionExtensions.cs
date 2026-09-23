@@ -24,13 +24,13 @@ public static class SecurityServiceCollectionExtensions
             provider.GetRequiredService<ActiveDirectory>(),
             provider.GetRequiredService<ISecurityEventSink>()));
         services.AddScoped<IDiagnosticCheck, CommonSecurityDiagnosticCheck>();
-        services.AddSingleton<ILevelXLocalTest, SecurityDirectoryConfigurationLevelXTest>();
-        services.AddSingleton<ILevelXLocalTest, SecurityOperationalPermissionsLevelXTest>();
+        services.AddSingleton<IDiagnosticLevelLocalTest, SecurityDirectoryConfigurationDiagnosticLevelTest>();
+        services.AddSingleton<IDiagnosticLevelLocalTest, SecurityOperationalPermissionsDiagnosticLevelTest>();
         foreach (string server in options.Servers.Where(value => !string.IsNullOrWhiteSpace(value)))
         {
             string capturedServer = server;
-            services.AddSingleton<ILevelXLocalTest>(_ =>
-                new SecurityDirectoryServerReachabilityLevelXTest(
+            services.AddSingleton<IDiagnosticLevelLocalTest>(_ =>
+                new SecurityDirectoryServerReachabilityDiagnosticLevelTest(
                     capturedServer,
                     options.Port,
                     options.TimeoutSeconds));
