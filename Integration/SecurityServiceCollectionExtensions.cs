@@ -24,6 +24,17 @@ public static class SecurityServiceCollectionExtensions
             provider.GetRequiredService<ActiveDirectory>(),
             provider.GetRequiredService<ISecurityEventSink>()));
         services.AddScoped<IDiagnosticCheck, CommonSecurityDiagnosticCheck>();
+        services.AddSingleton<ILevelXLocalTest, SecurityDirectoryConfigurationLevelXTest>();
+        services.AddSingleton<ILevelXLocalTest, SecurityOperationalPermissionsLevelXTest>();
+        foreach (string server in options.Servers.Where(value => !string.IsNullOrWhiteSpace(value)))
+        {
+            string capturedServer = server;
+            services.AddSingleton<ILevelXLocalTest>(_ =>
+                new SecurityDirectoryServerReachabilityLevelXTest(
+                    capturedServer,
+                    options.Port,
+                    options.TimeoutSeconds));
+        }
         return services;
     }
 
