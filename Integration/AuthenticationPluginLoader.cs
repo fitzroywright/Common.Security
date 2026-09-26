@@ -29,6 +29,15 @@ public static class AuthenticationPluginLoader
         if (!File.Exists(assemblyPath))
             throw new FileNotFoundException("Configured authentication plugin was not found.", assemblyPath);
 
+        AssemblyDependencyResolver resolver = new(assemblyPath);
+        AssemblyLoadContext.Default.Resolving += (_, assemblyName) =>
+        {
+            string? dependencyPath = resolver.ResolveAssemblyToPath(assemblyName);
+            return dependencyPath is null
+                ? null
+                : AssemblyLoadContext.Default.LoadFromAssemblyPath(dependencyPath);
+        };
+
         Assembly assembly = AssemblyLoadContext.Default.LoadFromAssemblyPath(assemblyPath);
         Type contract = typeof(IAuthenticationPlugin);
         Type[] implementations = assembly.GetTypes()
