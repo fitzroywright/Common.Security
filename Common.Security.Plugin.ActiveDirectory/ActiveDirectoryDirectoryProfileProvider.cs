@@ -2,8 +2,6 @@ namespace Common.Security.Plugin.ActiveDirectory;
 
 using Common.Security.Abstractions;
 using Common.Security.Models;
-using Common.Security.Options;
-using Common.Security.Services.Functions;
 using System.DirectoryServices.Protocols;
 using System.Net;
 
@@ -149,7 +147,7 @@ public sealed class ActiveDirectoryDirectoryProfileProvider(
     {
         try
         {
-            return Common.Security.Services.Functions.Rfc4514Parser.Parse(distinguishedName)
+            return Rfc4514Parser.Parse(distinguishedName)
                 .GetValues("CN")
                 .FirstOrDefault()?.Trim() ?? string.Empty;
         }
