@@ -8,6 +8,7 @@ using System.Diagnostics;
 using System.DirectoryServices.Protocols;
 using System.Net;
 
+[Obsolete("Use Common.Security.Plugin.ActiveDirectory through IDirectoryProfileProvider.", true)]
 public sealed class ActiveDirectoryUserLookup : IDirectoryUserLookup
 {
     private readonly ActiveDirectoryAuthenticationOptions options;
