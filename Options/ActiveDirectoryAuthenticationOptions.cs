@@ -1,5 +1,6 @@
 ﻿namespace Common.Security.Options
 {
+    [Obsolete("Active Directory provider options now live in Common.Security.Plugin.ActiveDirectory.", true)]
     public sealed class ActiveDirectoryAuthenticationOptions
     {
         public required string Domain { get; init; }
