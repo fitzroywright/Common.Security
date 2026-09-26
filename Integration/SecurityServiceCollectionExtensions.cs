@@ -2,39 +2,20 @@ namespace Common.Security.Integration;
 
 using Common.Diagnostics;
 using Common.Security.Abstractions;
-using Common.Security.Authenticators;
 using Common.Security.Authorization;
-using Common.Security.Options;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
 public static class SecurityServiceCollectionExtensions
 {
     public static IServiceCollection AddCommonSecurity(
-        this IServiceCollection services,
-        ActiveDirectoryAuthenticationOptions options)
+        this IServiceCollection services)
     {
         ArgumentNullException.ThrowIfNull(services);
-        ArgumentNullException.ThrowIfNull(options);
 
-        services.AddSingleton(options);
         services.TryAddSingleton<ISecurityEventSink, NullSecurityEventSink>();
-        services.AddSingleton<ActiveDirectory>();
-        services.AddSingleton<IAuthenticator>(provider => new PlatformAuthenticator(
-            provider.GetRequiredService<ActiveDirectory>(),
-            provider.GetRequiredService<ISecurityEventSink>()));
         services.AddScoped<IDiagnosticCheck, CommonSecurityDiagnosticCheck>();
-        services.AddSingleton<IDiagnosticLevelLocalTest, SecurityDirectoryConfigurationDiagnosticLevelTest>();
         services.AddSingleton<IDiagnosticLevelLocalTest, SecurityOperationalPermissionsDiagnosticLevelTest>();
-        foreach (string server in options.Servers.Where(value => !string.IsNullOrWhiteSpace(value)))
-        {
-            string capturedServer = server;
-            services.AddSingleton<IDiagnosticLevelLocalTest>(_ =>
-                new SecurityDirectoryServerReachabilityDiagnosticLevelTest(
-                    capturedServer,
-                    options.Port,
-                    options.TimeoutSeconds));
-        }
         return services;
     }
 
