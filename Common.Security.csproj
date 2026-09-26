@@ -17,6 +17,9 @@
     <Compile Remove="Common.Security.UnitTests/**/*.cs" />
     <EmbeddedResource Remove="Common.Security.UnitTests/**" />
     <None Remove="Common.Security.UnitTests/**" />
+    <Compile Remove="Common.Security.Plugin.ActiveDirectory/**/*.cs" />
+    <EmbeddedResource Remove="Common.Security.Plugin.ActiveDirectory/**" />
+    <None Remove="Common.Security.Plugin.ActiveDirectory/**" />
     <Compile Remove="Common.Diagnostics/**/*.cs" />
     <EmbeddedResource Remove="Common.Diagnostics/**" />
     <None Remove="Common.Diagnostics/**" />
