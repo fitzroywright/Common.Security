@@ -18,7 +18,8 @@ public static class AuthenticationPluginLoader
         ArgumentNullException.ThrowIfNull(configuration);
 
         IConfigurationSection section = configuration.GetSection(sectionName);
-        if (!section.GetValue("Enabled", true))
+        bool enabled = !bool.TryParse(section["Enabled"], out bool configuredEnabled) || configuredEnabled;
+        if (!enabled)
             throw new InvalidOperationException("Authentication plugin is disabled.");
 
         string configuredPath = section["AssemblyPath"]?.Trim() ?? string.Empty;
