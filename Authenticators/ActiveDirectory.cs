@@ -9,6 +9,7 @@
     using System.DirectoryServices.Protocols;
     using System.Net;
 
+    [Obsolete("Use Common.Security.Plugin.ActiveDirectory through IAuthenticationPlugin/IAuthenticator.", true)]
     public sealed class ActiveDirectory : IAuthenticator
     {
         private static readonly string[] ADAuthenticationAttributes = ["title", "displayName", "department", "mail", "manager", "telephoneNumber", "otherTelephone", "mobile", "otherMobile", "thumbnailPhoto", "userAccountControl", "memberOf"];
