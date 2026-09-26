@@ -1,8 +1,6 @@
 namespace Common.Security.Plugin.ActiveDirectory;
 
 using Common.Security.Abstractions;
-using Common.Security.Authenticators;
-using Common.Security.Options;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -20,7 +18,7 @@ public sealed class ActiveDirectoryAuthenticationPlugin : IAuthenticationPlugin
             ?? throw new InvalidOperationException("Active Directory authentication plugin settings are missing.");
 
         services.AddSingleton(options);
-        services.AddSingleton<IAuthenticator>(_ => new ActiveDirectory(options));
+        services.AddSingleton<IAuthenticator>(_ => new ActiveDirectoryAuthenticator(options));
         services.AddSingleton<IDirectoryProfileProvider>(_ => new ActiveDirectoryDirectoryProfileProvider(options));
     }
 }
