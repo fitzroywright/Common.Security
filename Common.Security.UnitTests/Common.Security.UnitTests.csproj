@@ -13,5 +13,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../Common.Security.csproj" />
+    <ProjectReference Include="../Common.Security.Plugin.ActiveDirectory/Common.Security.Plugin.ActiveDirectory.csproj" />
   </ItemGroup>
 </Project>
+

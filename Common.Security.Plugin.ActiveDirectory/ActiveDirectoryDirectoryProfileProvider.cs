@@ -64,9 +64,7 @@ public sealed class ActiveDirectoryDirectoryProfileProvider(
         connection.SessionOptions.SecureSocketLayer = true;
         connection.Bind();
 
-        string filter = loginNames.Count == 1
-            ? $"(&(objectCategory=person)(objectClass=user)(sAMAccountName={LdapFilterEscaper.Escape(loginNames.Single())}))"
-            : $"(&(objectCategory=person)(objectClass=user)(|{string.Concat(loginNames.Select(value => $"(sAMAccountName={LdapFilterEscaper.Escape(value)}"))}))";
+        string filter = DirectoryProfileSearchFilter.Build(loginNames);
 
         SearchRequest request = new(
             options.SearchBase,
@@ -170,3 +168,4 @@ public sealed class ActiveDirectoryDirectoryProfileProvider(
     private static string FirstNonBlank(string first, string second)
         => string.IsNullOrWhiteSpace(first) ? second : first;
 }
+
