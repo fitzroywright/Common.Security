@@ -1,5 +1,7 @@
 namespace Common.Security.Plugin.ActiveDirectory;
 
+using Common.Diagnostics;
+
 using Common.Security.Abstractions;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -20,5 +22,6 @@ public sealed class ActiveDirectoryAuthenticationPlugin : IAuthenticationPlugin
         services.AddSingleton(options);
         services.AddSingleton<IAuthenticator>(_ => new ActiveDirectoryAuthenticator(options));
         services.AddSingleton<IDirectoryProfileProvider>(_ => new ActiveDirectoryDirectoryProfileProvider(options));
+        services.AddSingleton<IDependencyDiagnosticProbe>(_ => new ActiveDirectoryDependencyProbe(options));
     }
 }
