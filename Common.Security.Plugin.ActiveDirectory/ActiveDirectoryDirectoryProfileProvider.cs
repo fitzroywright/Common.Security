@@ -64,9 +64,7 @@ public sealed class ActiveDirectoryDirectoryProfileProvider(
         connection.SessionOptions.SecureSocketLayer = true;
         connection.Bind();
 
-        string filter = loginNames.Count == 1
-            ? $"(&(objectCategory=person)(objectClass=user)(sAMAccountName={LdapFilterEscaper.Escape(loginNames.Single())}))"
-            : $"(&(objectCategory=person)(objectClass=user)(|{string.Concat(loginNames.Select(value => $"(sAMAccountName={LdapFilterEscaper.Escape(value)}"))}))";
+        string filter = BuildSearchFilter(loginNames);
 
         SearchRequest request = new(
             options.SearchBase,
@@ -109,6 +107,17 @@ public sealed class ActiveDirectoryDirectoryProfileProvider(
         }
 
         return result;
+    }
+
+    internal static string BuildSearchFilter(IReadOnlyCollection<string> loginNames)
+    {
+        ArgumentNullException.ThrowIfNull(loginNames);
+        if (loginNames.Count == 0)
+            throw new ArgumentException("At least one login name is required.", nameof(loginNames));
+
+        return loginNames.Count == 1
+            ? $"(&(objectCategory=person)(objectClass=user)(sAMAccountName={LdapFilterEscaper.Escape(loginNames.Single())}))"
+            : $"(&(objectCategory=person)(objectClass=user)(|{string.Concat(loginNames.Select(value => $"(sAMAccountName={LdapFilterEscaper.Escape(value)})"))}))";
     }
 
     private static string ResolveManagerDisplayName(LdapConnection connection, string distinguishedName)
