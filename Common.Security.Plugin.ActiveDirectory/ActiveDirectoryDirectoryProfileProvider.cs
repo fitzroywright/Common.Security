@@ -65,14 +65,10 @@ public sealed class ActiveDirectoryDirectoryProfileProvider(
         connection.Timeout = TimeSpan.FromSeconds(options.TimeoutSeconds);
         connection.SessionOptions.ProtocolVersion = 3;
         connection.SessionOptions.SecureSocketLayer = true;
-        if (!OperatingSystem.IsWindows())
-        {
-            // LDAPS already protects the transport. Avoid negotiating an additional
-            // SASL signing/sealing layer on Linux (equivalent to ldapsearch -O maxssf=0).
-            // The extra layer can corrupt subsequent LDAP response framing.
-            connection.SessionOptions.Signing = false;
-            connection.SessionOptions.Sealing = false;
-        }
+        // Do not set SessionOptions.Signing/Sealing on Linux: OpenLDAP rejects
+        // those options with LDAP_SERVER_DOWN before bind. SASL security-layer
+        // negotiation is configured through OpenLDAP's SASL_SECPROPS setting
+        // (for LDAPS, maxssf=0), not these .NET session properties.
         connection.Bind();
 
         string filter = BuildSearchFilter(loginNames);
