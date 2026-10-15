@@ -200,7 +200,7 @@ public sealed class ActiveDirectoryDirectoryProfileProvider(
             process.Start();
             Task<string> stdout = process.StandardOutput.ReadToEndAsync();
             Task<string> stderr = process.StandardError.ReadToEndAsync();
-            if (!process.WaitForExit(TimeSpan.FromSeconds(options.TimeoutSeconds)))
+            if (!process.WaitForExit(checked(options.TimeoutSeconds * 1000)))
             {
                 process.Kill(entireProcessTree: true);
                 throw new InvalidOperationException("LDAP search timed out.");
