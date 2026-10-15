@@ -56,10 +56,13 @@ public sealed class ActiveDirectoryDirectoryProfileProvider(
         IReadOnlyCollection<string> loginNames)
     {
         LdapDirectoryIdentifier identifier = new(server, options.Port, true, false);
-        using LdapConnection connection = new(identifier, CredentialCache.DefaultNetworkCredentials, AuthType.Negotiate)
-        {
-            Timeout = TimeSpan.FromSeconds(options.TimeoutSeconds)
-        };
+        // Linux has no Windows logon token to supply as DefaultNetworkCredentials.
+        // Use the service's Kerberos ticket cache (KRB5CCNAME) for SASL/GSSAPI.
+        // Preserve Windows integrated Negotiate authentication.
+        using LdapConnection connection = OperatingSystem.IsWindows()
+            ? new LdapConnection(identifier, CredentialCache.DefaultNetworkCredentials, AuthType.Negotiate)
+            : new LdapConnection(identifier) { AuthType = AuthType.Kerberos };
+        connection.Timeout = TimeSpan.FromSeconds(options.TimeoutSeconds);
         connection.SessionOptions.ProtocolVersion = 3;
         connection.SessionOptions.SecureSocketLayer = true;
         connection.Bind();
