@@ -47,7 +47,7 @@ public sealed class HostedMockSessionTests
             AccountPopulation.Staff,SecurityAccountStatus.Active,proof.Key),"isolated-demo-enrollment");
         var configuration=new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string,string?> {
             ["SuiteSecurity:SigningKey"]=new string('s',48),["SuiteSecurity:AccountRoles:approved-demo-id:0"]="Administrator" }).Build();
-        using var services=new ServiceCollection().BuildServiceProvider();
+        using var services=new ServiceCollection().AddSingleton(accounts).BuildServiceProvider();
         var source=new SuiteSecurity(configuration,new HostingEnvironment{EnvironmentName="Development"},services,accounts,
             new SuiteApplication("source","source-cookie",new Dictionary<string,string[]>{{"Administrator",["Security.Manage"]}}));
         var target=new SuiteSecurity(configuration,new HostingEnvironment{EnvironmentName="Production"},services,accounts,
