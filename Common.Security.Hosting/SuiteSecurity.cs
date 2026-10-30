@@ -68,6 +68,8 @@ public sealed class SuiteSecurity
 
     public SuiteIdentity? AcceptVerifiedIdentity(VerifiedIdentity identity)
     {
+        if(identity.ProviderKind==AuthenticationProviderKind.Mock &&
+            !MockEnvironmentPolicy.IsPermitted(true,environment.EnvironmentName,true)) return null;
         SecurityAccount account;
         try { account = new AccountProvisioningService(accounts).Provision(identity, AccountPopulation.Staff).Account; }
         catch (IdentityEnrollmentRequiredException) { return null; }
@@ -155,7 +157,9 @@ public sealed class SuiteSecurity
 
     private SuiteIdentity? Project(SecurityAccount account, ExternalIdentityKey key, AuthenticationProviderKind kind, DateTimeOffset authenticatedAt)
     {
-        if (account.Status != SecurityAccountStatus.Active) return null;
+        if (account.Status != SecurityAccountStatus.Active ||
+            (kind==AuthenticationProviderKind.Mock || account.ProviderKind==AuthenticationProviderKind.Mock) &&
+            !MockEnvironmentPolicy.IsPermitted(true,environment.EnvironmentName,true)) return null;
         var authorizer = new PermissionAuthorizer(new ConfiguredRoleStore(configuration, application));
         var subject = AuthorizationSubject.Create(account.Id, []);
         string[] permissions = application.Roles.Values.SelectMany(x => x).Distinct(StringComparer.OrdinalIgnoreCase)

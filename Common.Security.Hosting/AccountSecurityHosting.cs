@@ -5,6 +5,7 @@ using System.Globalization;
 using System.Security.Claims;
 using System.Threading.RateLimiting;
 using Common.Security.Abstractions;
+using Common.Security.Authenticators;
 using Common.Security.Integration;
 using Common.Security.Models;
 using Common.Security.Services;
@@ -15,6 +16,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 
 public static class AccountSecurityHosting
 {
@@ -67,7 +69,7 @@ public static class AccountSecurityHosting
         string? id = context.Principal?.FindFirstValue(AccountIdClaim);
         string? version = context.Principal?.FindFirstValue(SessionVersionClaim);
         SecurityAccount? account = id is null ? null : store.Find(id);
-        if (account is null || !long.TryParse(version, NumberStyles.None, CultureInfo.InvariantCulture, out long stamp) ||
+        if (account is null || IsMockForbidden(account,context.Principal,context.HttpContext.RequestServices) || !long.TryParse(version, NumberStyles.None, CultureInfo.InvariantCulture, out long stamp) ||
             stamp != account.SessionVersion || account.Status is SecurityAccountStatus.Disabled or SecurityAccountStatus.Suspended)
         {
             context.RejectPrincipal();
@@ -75,6 +77,14 @@ public static class AccountSecurityHosting
             return;
         }
         context.HttpContext.Items[CurrentAccountItem] = account;
+    }
+
+    private static bool IsMockForbidden(SecurityAccount account,ClaimsPrincipal? principal,IServiceProvider services)
+    {
+        bool mock=account.ProviderKind==AuthenticationProviderKind.Mock ||
+            string.Equals(principal?.FindFirstValue("authentication_source"),nameof(AuthenticationProviderKind.Mock),StringComparison.OrdinalIgnoreCase);
+        string environment=services.GetService<IHostEnvironment>()?.EnvironmentName ?? "Production";
+        return mock && !MockEnvironmentPolicy.IsPermitted(true,environment,true);
     }
 
     /// <summary>Must run after authentication and before application authorization/business middleware.</summary>
@@ -90,7 +100,7 @@ public static class AccountSecurityHosting
                 var account = context.Items.TryGetValue(CurrentAccountItem, out object? existing)
                     ? existing as SecurityAccount : context.RequestServices.GetRequiredService<IAccountStore>().Find(accountId);
                 string? version = context.User.FindFirstValue(SessionVersionClaim);
-                if (account is null || account.Status is SecurityAccountStatus.Disabled or SecurityAccountStatus.Suspended ||
+                if (account is null || IsMockForbidden(account,context.User,context.RequestServices) || account.Status is SecurityAccountStatus.Disabled or SecurityAccountStatus.Suspended ||
                     !long.TryParse(version, NumberStyles.None, CultureInfo.InvariantCulture, out long stamp) || stamp != account.SessionVersion)
                 {
                     context.Response.StatusCode = StatusCodes.Status401Unauthorized;
