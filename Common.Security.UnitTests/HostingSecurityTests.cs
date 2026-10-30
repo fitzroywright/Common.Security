@@ -15,6 +15,13 @@ using Xunit;
 
 public sealed class HostingSecurityTests
 {
+    [Fact]
+    public void CallerSuppliedSidClaimsCannotImpersonateAWindowsIdentity()
+    {
+        var principal=new ClaimsPrincipal(new ClaimsIdentity(new[]{new Claim(ClaimTypes.PrimarySid,"S-1-5-21-1-2-3-999")},"Negotiate"));
+        Assert.Throws<InvalidOperationException>(()=>WindowsNegotiateIdentity.FromValidatedPrincipal(principal));
+    }
+
     [Theory]
     [InlineData(SecurityAccountStatus.PendingAccess,403)]
     [InlineData(SecurityAccountStatus.Disabled,401)]

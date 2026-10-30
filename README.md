@@ -69,6 +69,8 @@ The core `Common.Security` assembly intentionally contains no Active Directory a
 
 `AuthenticationResult.Succeeded` requires an immutable `VerifiedIdentity`; provider-scoped subject keys are the only external linking authority. Email and usernames are profile information. The Active Directory plugin resolves domain and user object GUIDs over the existing LDAPS path and rejects disabled directory accounts. `Common.Security.Hosting` owns strict code/PKCE OpenID Connect registration, tenant allowlists, cookies, rate limiting and shared account administration.
 
+`WindowsNegotiateIdentity` accepts only an authenticated domain `WindowsIdentity` from the host Negotiate handler. It binds immutable domain/user SIDs through the same account lifecycle; caller-supplied SID claims cannot replace OS proof. Hosts must explicitly approve any new SID binding and apply their business roles.
+
 `IAccountStore` owns account state, approved immutable bindings and session versions. `RelationalAccountStore` supplies one application-scoped SQLite/PostgreSQL implementation with atomic audit, unique identities, serializable first-login provisioning, optional transactional business-record projection, approved migration imports, and revocation tombstones. Public applicants can be provisioned Active; staff and operators start Pending Access. Applications still decide permissions and approvals. A correct password or validated provider token grants no role.
 
 Local credentials use application-scoped PBKDF2, lockout and one-use expiring recovery proofs. Mock authentication requires explicit enablement, Development or Demo, confirmed data isolation and a server-controlled identity allowlist. There is no arbitrary-user or administrative-role fallback.
