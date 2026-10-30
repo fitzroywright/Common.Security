@@ -5,7 +5,9 @@ using System.Security.Claims;
 using Common.Security.Models;
 
 public sealed record ExternalIdentityRegistration(string ProviderId, string Issuer,
-    AuthenticationProviderKind Kind, IReadOnlyCollection<string>? AllowedTenants = null);
+    AuthenticationProviderKind Kind, IReadOnlyCollection<string>? AllowedTenants = null,
+    string UserNameClaim = "preferred_username", string DisplayNameClaim = "name", string EmailClaim = "email",
+    IReadOnlyCollection<string>? GroupClaimTypes = null);
 
 public static class VerifiedExternalIdentityFactory
 {
@@ -47,15 +49,33 @@ public static class VerifiedExternalIdentityFactory
         }
         if (authenticated > clock.GetUtcNow().AddMinutes(2))
             throw new InvalidOperationException("Provider authentication time is in the future.");
-        string login = principal.FindFirstValue("preferred_username") ?? principal.FindFirstValue(ClaimTypes.Email) ?? subject;
-        string name = principal.FindFirstValue("name") ?? principal.FindFirstValue(ClaimTypes.Name) ?? login;
+        return Build(principal,new ExternalIdentityKey(registration.ProviderId,scope,subject),registration,authenticated);
+    }
+
+    /// <summary>Call only after the host validates the protected/correlated OAuth callback cookie.</summary>
+    public static VerifiedIdentity FromValidatedOAuthPrincipal(ClaimsPrincipal principal,ExternalIdentityKey providerKey,TimeProvider? timeProvider=null)
+    {
+        if(principal.Identity?.IsAuthenticated!=true || Required(principal,ClaimTypes.NameIdentifier)!=providerKey.SubjectId)
+            throw new InvalidOperationException("The correlated OAuth provider subject does not match its verified principal.");
+        if(!Uri.TryCreate(providerKey.ScopeId,UriKind.Absolute,out var scope)||scope.Scheme!="https")
+            throw new ArgumentException("An explicit HTTPS provider scope is required.");
+        return Build(principal,providerKey,new ExternalIdentityRegistration(providerKey.ProviderId,providerKey.ScopeId,AuthenticationProviderKind.External),
+            (timeProvider??TimeProvider.System).GetUtcNow());
+    }
+
+    private static VerifiedIdentity Build(ClaimsPrincipal principal,ExternalIdentityKey key,ExternalIdentityRegistration registration,DateTimeOffset authenticated)
+    {
+        string login = principal.FindFirstValue(registration.UserNameClaim) ?? principal.FindFirstValue(ClaimTypes.Email) ?? key.SubjectId;
+        string name = principal.FindFirstValue(registration.DisplayNameClaim) ?? principal.FindFirstValue(ClaimTypes.Name) ?? login;
         string? verifiedEmail = principal.FindFirstValue("email_verified") == "true"
-            ? principal.FindFirstValue("email") ?? principal.FindFirstValue(ClaimTypes.Email) : null;
-        string[] groups = principal.FindAll("groups").Concat(principal.FindAll("directory_group"))
-            .Select(x => x.Value).ToArray();
+            ? principal.FindFirstValue(registration.EmailClaim) ?? principal.FindFirstValue(ClaimTypes.Email) : null;
+        string[] groups = (registration.GroupClaimTypes ?? ["groups","directory_group"]).SelectMany(type=>principal.FindAll(type))
+            .SelectMany(x=>x.Value.Split([';',','],StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries)).ToArray();
         var claims = principal.Claims.Where(x => x.Type is "amr" or "acr" or "iss" or "tid" or "oid")
             .GroupBy(x => x.Type, StringComparer.Ordinal).ToDictionary(x => x.Key, x => string.Join(' ', x.Select(c => c.Value)));
-        return new VerifiedIdentity(new ExternalIdentityKey(registration.ProviderId, scope, subject), registration.Kind,
+        string? contact=principal.FindFirstValue(registration.EmailClaim) ?? principal.FindFirstValue(ClaimTypes.Email);
+        if(!string.IsNullOrWhiteSpace(contact))claims["contact_email"]=contact;
+        return new VerifiedIdentity(key, registration.Kind,
             login, name, authenticated, principal.FindFirstValue("acr") ?? "external-provider", verifiedEmail, groups, claims);
     }
 

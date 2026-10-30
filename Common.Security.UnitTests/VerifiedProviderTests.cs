@@ -35,6 +35,25 @@ public sealed class VerifiedProviderTests
     }
 
     [Fact]
+    public void ConfiguredFederatedDirectoryProfileAndGroupClaimsArePreserved()
+    {
+        var principal=new ClaimsPrincipal(new ClaimsIdentity(new[]{new Claim("sub","stable-subject"),new Claim("upn","directory-alias"),new Claim("display_name","Directory User"),new Claim("mail","contact@example.test"),new Claim("memberOf","Reviewers;Readers")},"validated-oidc"));
+        var registration=new ExternalIdentityRegistration("federation","https://identity.example.test",AuthenticationProviderKind.External,
+            UserNameClaim:"upn",DisplayNameClaim:"display_name",EmailClaim:"mail",GroupClaimTypes:["memberOf"]);
+        var proof=VerifiedExternalIdentityFactory.FromValidatedPrincipal(principal,registration);
+        Assert.Equal("directory-alias",proof.LoginName);Assert.Equal("Directory User",proof.DisplayName);
+        Assert.Equal(new[]{"Reviewers","Readers"},proof.GroupNames);Assert.Null(proof.VerifiedEmail);
+        Assert.Equal("contact@example.test",proof.Claims["contact_email"]);
+    }
+
+    [Fact]
+    public void CorrelatedOAuthSubjectCannotBeReplacedByARequestIdentifier()
+    {
+        var principal=new ClaimsPrincipal(new ClaimsIdentity(new[]{new Claim(ClaimTypes.NameIdentifier,"verified-subject")},"validated-oauth"));
+        Assert.Throws<InvalidOperationException>(()=>VerifiedExternalIdentityFactory.FromValidatedOAuthPrincipal(principal,new ExternalIdentityKey("provider","https://provider.example.test","attacker-subject")));
+    }
+
+    [Fact]
     public void ExternalSubjectIsIndependentOfEmailOrDisplayName()
     {
         var registration = new ExternalIdentityRegistration("google", "https://accounts.google.com", AuthenticationProviderKind.External);
