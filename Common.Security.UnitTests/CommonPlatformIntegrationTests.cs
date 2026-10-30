@@ -57,12 +57,9 @@ public sealed class CommonPlatformIntegrationTests
 
         public AuthenticationResult Authenticate(string loginName, string password)
         {
-            return new AuthenticationResult
-            {
-                IsAuthenticated = success,
-                IsAdministrative = false,
-                UserInfo = null
-            };
+            return success ? AuthenticationResult.Succeeded(new VerifiedIdentity(
+                new ExternalIdentityKey("test", "test-scope", loginName), AuthenticationProviderKind.Mock,
+                loginName, loginName, DateTimeOffset.UtcNow, "test")) : AuthenticationResult.Failed();
         }
     }
 

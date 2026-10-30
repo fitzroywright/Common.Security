@@ -5,9 +5,26 @@ using Common.Security.Abstractions;
 using Common.Security.Authorization;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using System.Data.Common;
+using Common.Security.Services;
 
 public static class SecurityServiceCollectionExtensions
 {
+    public static IServiceCollection AddCommonAccountStore(this IServiceCollection services,
+        Func<IServiceProvider, DbConnection> connections, string applicationId)
+    {
+        services.AddSingleton(provider =>
+        {
+            var store = new RelationalAccountStore(() => connections(provider), applicationId);
+            store.EnsureSchema();
+            return store;
+        });
+        services.AddSingleton<IAccountStore>(provider => provider.GetRequiredService<RelationalAccountStore>());
+        services.AddSingleton<ILocalCredentialStore>(provider => provider.GetRequiredService<RelationalAccountStore>());
+        services.AddSingleton<AccountProvisioningService>();
+        return services;
+    }
+
     public static IServiceCollection AddCommonSecurity(
         this IServiceCollection services)
     {

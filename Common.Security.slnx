@@ -1,5 +1,7 @@
 <Solution>
   <Project Path="Common.Security.csproj" />
+  <Project Path="Common.Security.Hosting/Common.Security.Hosting.csproj" />
   <Project Path="Common.Security.Plugin.ActiveDirectory/Common.Security.Plugin.ActiveDirectory.csproj" />
   <Project Path="Common.Security.UnitTests/Common.Security.UnitTests.csproj" />
+  <Project Path="Common.Security.Tools/Common.Security.Tools.csproj" />
 </Solution>

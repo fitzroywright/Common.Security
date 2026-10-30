@@ -1,60 +1,51 @@
-namespace Common.Security.Authenticators
+namespace Common.Security.Authenticators;
+
+using System.Security.Cryptography;
+using System.Text;
+using Common.Security.Abstractions;
+using Common.Security.Models;
+using Common.Security.Options;
+
+public static class MockEnvironmentPolicy
 {
-    using Common.Security.Abstractions;
-    using Common.Security.Constants;
-    using Common.Security.Models;
-    using Common.Security.Options;
-    using Common.Security.Services.Functions;
-    using System.Diagnostics;
+    public static bool IsPermitted(bool enabled, string environmentName, bool isolationConfirmed)
+        => enabled && isolationConfirmed && (environmentName.Equals("Development", StringComparison.OrdinalIgnoreCase)
+            || environmentName.Equals("Demo", StringComparison.OrdinalIgnoreCase));
+}
 
-    public sealed class MockAuthenticator : IAuthenticator
+public sealed class MockAuthenticator : IAuthenticator
+{
+    private readonly MockAuthenticationOptions options;
+    private readonly IReadOnlyDictionary<string, MockIdentityDefinition> identities;
+    private readonly TimeProvider clock;
+
+    public MockAuthenticator(MockAuthenticationOptions options, TimeProvider? timeProvider = null)
     {
-        private readonly string configuredPassword;
-        private readonly bool allowAnyUser;
-        private readonly HashSet<string> allowedUsers;
-        private readonly HashSet<string> adminUsers;
+        this.options = options ?? throw new ArgumentNullException(nameof(options));
+        clock = timeProvider ?? TimeProvider.System;
+        ArgumentException.ThrowIfNullOrWhiteSpace(options.ApplicationId);
+        identities = options.Identities.ToDictionary(x => x.LoginName, StringComparer.OrdinalIgnoreCase);
+        if (options.Identities.Any(x => string.IsNullOrWhiteSpace(x.LoginName) || string.IsNullOrWhiteSpace(x.SubjectId)) ||
+            options.Identities.Select(x => x.SubjectId).Distinct(StringComparer.Ordinal).Count() != options.Identities.Count)
+            throw new ArgumentException("Mock identities require unique server-controlled login names and subjects.");
+    }
 
-        public MockAuthenticator(MockAuthenticationOptions options)
+    public AuthenticationResult Authenticate(string loginName, string password)
+    {
+        if (!MockEnvironmentPolicy.IsPermitted(options.Enabled, options.EnvironmentName, options.IsolationConfirmed))
+            return AuthenticationResult.Failed(AuthenticationFailure.Prohibited);
+        if (string.IsNullOrWhiteSpace(loginName) || !identities.TryGetValue(loginName.Trim(), out MockIdentityDefinition? definition))
+            return AuthenticationResult.Failed();
+        byte[] expected = SHA256.HashData(Encoding.UTF8.GetBytes(options.Password));
+        byte[] supplied = SHA256.HashData(Encoding.UTF8.GetBytes(password ?? string.Empty));
+        if (!CryptographicOperations.FixedTimeEquals(expected, supplied)) return AuthenticationResult.Failed();
+        var identity = new VerifiedIdentity(new ExternalIdentityKey("mock", options.ApplicationId, definition.SubjectId),
+            AuthenticationProviderKind.Mock, definition.LoginName, definition.DisplayName, clock.GetUtcNow(),
+            "isolated-mock", groups: definition.Groups);
+        return AuthenticationResult.Succeeded(identity, new ApplicationUserInfo
         {
-            ArgumentNullException.ThrowIfNull(options);
-            configuredPassword = options.Password ?? string.Empty;
-            allowAnyUser = options.AllowAnyUser;
-            allowedUsers = ParseUsers(options.AllowedUsers);
-            adminUsers = ParseUsers(options.AdminUsers);
-        }
-
-        public AuthenticationResult Authenticate(string loginName, string password)
-        {
-            if (string.IsNullOrWhiteSpace(loginName)) return AuthenticationFailed();
-
-            string userName = UserNameNormalizer.GetUserNameWithoutDomain(loginName);
-            if (string.IsNullOrWhiteSpace(userName)) return AuthenticationFailed();
-
-            bool isAdministrative = adminUsers.Contains(userName);
-            bool isAllowed = allowAnyUser || allowedUsers.Contains(userName) || isAdministrative;
-            if (!isAllowed || !string.Equals(password ?? string.Empty, configuredPassword, StringComparison.Ordinal)) return AuthenticationFailed();
-
-            ApplicationUserInfo userInfo = CreateUserInfo(userName);
-            Trace.WriteLine($"Mock authentication succeeded. UserName={userName}, IsAdministrative={isAdministrative}");
-            return new AuthenticationResult { IsAuthenticated = true, IsAdministrative = isAdministrative, UserInfo = userInfo };
-        }
-
-        private static HashSet<string> ParseUsers(string? users)
-        {
-            if (string.IsNullOrWhiteSpace(users)) return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            return users.Split([StringConstants.Comma, StringConstants.Semicolon], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                .Select(UserNameNormalizer.GetUserNameWithoutDomain)
-                .Where(userName => !string.IsNullOrWhiteSpace(userName))
-                .ToHashSet(StringComparer.OrdinalIgnoreCase);
-        }
-
-        private static AuthenticationResult AuthenticationFailed() => new() { IsAuthenticated = false, IsAdministrative = false, UserInfo = null };
-
-        private static ApplicationUserInfo CreateUserInfo(string userName) => new()
-        {
-            DisplayName = $"Mock {userName}", Mail = $"{userName}@mockdomain.org", Department = "Mock Department", Title = "Mock User",
-            Manager = "Mock Manager", TelephoneNumber = "000-0000", Mobile = "000-0000", OtherTelephoneNumber = string.Empty,
-            OtherMobile = string.Empty, Photo = null, UserAccountControl = 0, LastSync = DateTime.UtcNow
-        };
+            DisplayName = definition.DisplayName, Mail = definition.Email,
+            Department = "Isolated demonstration", Title = "Mock identity", LastSync = clock.GetUtcNow().UtcDateTime
+        });
     }
 }
