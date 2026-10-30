@@ -12,12 +12,11 @@ public sealed class ActiveDirectoryAuthenticator : IAuthenticator
     private static readonly string[] AuthenticationAttributes =
     [
         "title", "displayName", "department", "mail", "manager", "telephoneNumber",
-        "otherTelephone", "mobile", "otherMobile", "thumbnailPhoto", "userAccountControl", "memberOf"
+        "otherTelephone", "mobile", "otherMobile", "thumbnailPhoto", "userAccountControl", "memberOf", "objectGUID"
     ];
 
     private readonly ActiveDirectoryAuthenticationOptions options;
     private readonly string[] servers;
-    private readonly string[] administrativeGroupPatterns;
     private volatile string? preferredServer;
 
     public ActiveDirectoryAuthenticator(ActiveDirectoryAuthenticationOptions options)
@@ -26,8 +25,6 @@ public sealed class ActiveDirectoryAuthenticator : IAuthenticator
         Validate(options);
         servers = options.Servers.Where(x => !string.IsNullOrWhiteSpace(x))
             .Select(x => x.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
-        administrativeGroupPatterns = options.AdministrativeGroups.Where(x => !string.IsNullOrWhiteSpace(x))
-            .Select(x => $"CN={x.Trim()},").Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
     }
 
     public AuthenticationResult Authenticate(string loginName, string password)
@@ -46,13 +43,17 @@ public sealed class ActiveDirectoryAuthenticator : IAuthenticator
 
         ApplicationUserInfo userInfo = new();
         PopulateUserInfo(userEntry, userInfo);
-        return new AuthenticationResult
-        {
-            IsAuthenticated = true,
-            IsAdministrative = IsAdministrative(userEntry),
-            UserInfo = userInfo,
-            GroupNames = GetGroupNames(userEntry)
-        };
+        if (!userEntry.Attributes.Contains("userAccountControl") ||
+            !long.TryParse(userEntry.Attributes["userAccountControl"].GetValues(typeof(string)).Cast<string>().SingleOrDefault(), out long flags))
+            return Failed();
+        if ((flags & 2) != 0) return AuthenticationResult.Failed(AuthenticationFailure.Disabled);
+        string? subjectId = ReadObjectGuid(userEntry);
+        string? directoryId = ReadDirectoryId(connection);
+        if (subjectId is null || directoryId is null) return Failed();
+        var identity = new VerifiedIdentity(new ExternalIdentityKey("active-directory", directoryId, subjectId),
+            AuthenticationProviderKind.ActiveDirectory, userName, userInfo.DisplayName ?? userName,
+            DateTimeOffset.UtcNow, "ldaps-password", groups: GetGroupNames(userEntry));
+        return AuthenticationResult.Succeeded(identity, userInfo);
     }
 
     private LdapConnection? GetConnection(string loginName, string password)
@@ -114,7 +115,7 @@ public sealed class ActiveDirectoryAuthenticator : IAuthenticator
         {
             SearchRequest request = new(searchBase, $"(sAMAccountName={escaped})", SearchScope.Subtree, attributes);
             SearchResponse response = (SearchResponse)connection.SendRequest(request);
-            return response.Entries.Count == 0 ? null : response.Entries[0];
+            return response.Entries.Count != 1 ? null : response.Entries[0];
         }
         catch (Exception ex) when (ex is LdapException or DirectoryOperationException)
         {
@@ -123,12 +124,25 @@ public sealed class ActiveDirectoryAuthenticator : IAuthenticator
         }
     }
 
-    private bool IsAdministrative(SearchResultEntry entry)
+    private static string? ReadObjectGuid(SearchResultEntry entry)
     {
-        if (administrativeGroupPatterns.Length == 0 || !entry.Attributes.Contains("memberOf")) return false;
-        IEnumerable<string> memberOf = entry.Attributes["memberOf"].GetValues(typeof(string)).Cast<string>();
-        return memberOf.Any(groupDn => administrativeGroupPatterns.Any(pattern =>
-            groupDn.StartsWith(pattern, StringComparison.OrdinalIgnoreCase)));
+        if (!entry.Attributes.Contains("objectGUID")) return null;
+        byte[]? bytes = entry.Attributes["objectGUID"].GetValues(typeof(byte[])).Cast<byte[]>().SingleOrDefault();
+        return bytes?.Length == 16 ? new Guid(bytes).ToString("D") : null;
+    }
+
+    private static string? ReadDirectoryId(LdapConnection connection)
+    {
+        try
+        {
+            var root = (SearchResponse)connection.SendRequest(new SearchRequest("", "(objectClass=*)", SearchScope.Base, "defaultNamingContext"));
+            if (root.Entries.Count != 1 || !root.Entries[0].Attributes.Contains("defaultNamingContext")) return null;
+            string? domain = root.Entries[0].Attributes["defaultNamingContext"].GetValues(typeof(string)).Cast<string>().SingleOrDefault();
+            if (string.IsNullOrWhiteSpace(domain)) return null;
+            var result = (SearchResponse)connection.SendRequest(new SearchRequest(domain, "(objectClass=*)", SearchScope.Base, "objectGUID"));
+            return result.Entries.Count == 1 ? ReadObjectGuid(result.Entries[0]) : null;
+        }
+        catch (Exception e) when (e is LdapException or DirectoryOperationException) { return null; }
     }
 
     private static IReadOnlyList<string> GetGroupNames(SearchResultEntry entry)
@@ -150,6 +164,7 @@ public sealed class ActiveDirectoryAuthenticator : IAuthenticator
     {
         foreach (string attributeName in entry.Attributes.AttributeNames)
         {
+            if (attributeName.Equals("objectGUID", StringComparison.OrdinalIgnoreCase)) continue;
             DirectoryAttribute attribute = entry.Attributes[attributeName];
             if (attributeName.Equals("thumbnailPhoto", StringComparison.OrdinalIgnoreCase))
             {
@@ -187,11 +202,5 @@ public sealed class ActiveDirectoryAuthenticator : IAuthenticator
         if (options.TimeoutSeconds <= 0) throw new ArgumentOutOfRangeException(nameof(options.TimeoutSeconds));
     }
 
-    private static AuthenticationResult Failed() => new()
-    {
-        IsAuthenticated = false,
-        IsAdministrative = false,
-        UserInfo = null,
-        GroupNames = []
-    };
+    private static AuthenticationResult Failed() => AuthenticationResult.Failed();
 }

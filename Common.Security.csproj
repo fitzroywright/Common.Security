@@ -4,7 +4,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <PackageId>Common.Security</PackageId>
-    <Version>1.0.0</Version>
+    <Version>2.0.0</Version>
     <Authors>Fitzroy Wright</Authors>
     <Company>Thinking Machines</Company>
     <Description>Provider-neutral authentication, authorization, and security contracts for Common applications.</Description>
@@ -14,6 +14,10 @@
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Remove="Common.Security.Tools/**/*.cs" />
+    <Compile Remove="Common.Security.Hosting/**/*.cs" />
+    <EmbeddedResource Remove="Common.Security.Hosting/**" />
+    <None Remove="Common.Security.Hosting/**" />
     <Compile Remove="Common.Security.UnitTests/**/*.cs" />
     <EmbeddedResource Remove="Common.Security.UnitTests/**" />
     <None Remove="Common.Security.UnitTests/**" />
