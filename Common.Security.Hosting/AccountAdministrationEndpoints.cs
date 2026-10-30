@@ -19,6 +19,7 @@ public static class AccountAdministrationEndpoints
         group.AddEndpointFilter(async (context, next) =>
         {
             var http = context.HttpContext;
+            if(!BrowserMutationPolicy.IsAllowed(http.Request)) return Results.StatusCode(StatusCodes.Status403Forbidden);
             string? accountId = http.User.FindFirstValue(AccountSecurityHosting.AccountIdClaim);
             bool current = accountId is not null && long.TryParse(http.User.FindFirstValue(AccountSecurityHosting.SessionVersionClaim), out long version) &&
                 http.RequestServices.GetRequiredService<AccountProvisioningService>().IsCurrentSession(accountId, version);
