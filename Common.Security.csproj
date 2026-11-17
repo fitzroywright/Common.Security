@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFramework>net11.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <PackageId>Common.Security</PackageId>
@@ -28,14 +28,15 @@
     <EmbeddedResource Remove="Common.Diagnostics/**" />
     <None Remove="Common.Diagnostics/**" />
   </ItemGroup>
-  <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.0" />
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.0" />
+  <PropertyGroup>
+    <CommonDiagnosticsProject Condition="'$(CommonDiagnosticsProject)' == '' and Exists('Common.Diagnostics/Common.Diagnostics.csproj')">Common.Diagnostics/Common.Diagnostics.csproj</CommonDiagnosticsProject>
+    <CommonDiagnosticsProject Condition="'$(CommonDiagnosticsProject)' == '' and Exists('../Common.Diagnostics/Common.Diagnostics.csproj')">../Common.Diagnostics/Common.Diagnostics.csproj</CommonDiagnosticsProject>
+    <CommonDiagnosticsProject Condition="'$(CommonDiagnosticsProject)' == '' and Exists('../Common/Common.Diagnostics/Common.Diagnostics.csproj')">../Common/Common.Diagnostics/Common.Diagnostics.csproj</CommonDiagnosticsProject>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(CommonDiagnosticsProject)' != ''">
+    <ProjectReference Include="$(CommonDiagnosticsProject)" AdditionalProperties="Configuration=$(Configuration)" />
   </ItemGroup>
-  <ItemGroup Condition="Exists('Common.Diagnostics/Common.Diagnostics.csproj')">
-    <ProjectReference Include="Common.Diagnostics/Common.Diagnostics.csproj" AdditionalProperties="Configuration=$(Configuration)" />
-  </ItemGroup>
-  <ItemGroup Condition="!Exists('Common.Diagnostics/Common.Diagnostics.csproj') And Exists('../Common.Diagnostics/Common.Diagnostics.csproj')">
-    <ProjectReference Include="../Common.Diagnostics/Common.Diagnostics.csproj" AdditionalProperties="Configuration=$(Configuration)" />
-  </ItemGroup>
+  <Target Name="RequireCommonDiagnostics" BeforeTargets="PrepareForBuild" Condition="'$(CommonDiagnosticsProject)' == '' or !Exists('$(CommonDiagnosticsProject)')">
+    <Error Text="Common.Diagnostics project was not found. Set CommonDiagnosticsProject to the existing Common.Diagnostics.csproj path." />
+  </Target>
 </Project>
