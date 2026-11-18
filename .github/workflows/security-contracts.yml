@@ -14,11 +14,11 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: fitzroywright/Common.Diagnostics
-          ref: 4f90c9fd31aaa16ffbada97e33084a5356a45859
+          ref: aea6757ff483be0d9262a9d239dea69ed2703eed
           path: Common.Diagnostics
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 10.0.x
+          dotnet-version: 11.0.x
       - run: dotnet test Common.Security/Common.Security.UnitTests/Common.Security.UnitTests.csproj -c Release --logger trx --results-directory TestResults
       - run: dotnet build Common.Security/Common.Security.Tools/Common.Security.Tools.csproj -c Release
       - uses: actions/upload-artifact@v4
